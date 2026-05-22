@@ -43,3 +43,24 @@ export interface DateRange {
   from: Date;
   to: Date;
 }
+
+export type MessageRole = "user" | "assistant";
+
+export interface ChatMessage {
+  id: string;
+  role: MessageRole;
+  content: string;
+  timestamp: Date;
+  isStreaming?: boolean;
+  isError?: boolean;
+}
+
+export interface ChatRequest {
+  question: string;
+}
+
+export interface ChatResponse {
+  answer: string;
+  sqlUsed?: string;
+  rowCount?: number;
+}
