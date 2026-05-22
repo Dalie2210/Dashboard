@@ -19,8 +19,7 @@ interface SessionsTimelineChartProps {
 }
 
 function formatDay(day: string): string {
-  const d = new Date(day + "T12:00:00");
-  return d.toLocaleDateString("es-CO", { day: "numeric", month: "short" });
+  return day;
 }
 
 interface TooltipPayloadItem {

@@ -6,7 +6,8 @@
       "Bash(Format-Table -AutoSize)",
       "Bash(npm install *)",
       "Bash(npm run *)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(dir /s /b \"c:\\\\Users\\\\danie\\\\OneDrive\\\\Desktop\\\\Be Welly\\\\Dashboard\\\\app\")"
     ]
   }
 }

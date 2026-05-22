@@ -109,10 +109,14 @@ export async function getSessionsTimeline(
   `) as Row[];
 
   return {
-    points: rows.map((r) => ({
-      day: String(r.day),
-      sessionCount: Number(r.session_count),
-    })),
+    points: rows.map((r) => {
+      const date = new Date(r.day as string);
+      const formattedDay = date.toISOString().split("T")[0];
+      return {
+        day: formattedDay,
+        sessionCount: Number(r.session_count),
+      };
+    }),
   };
 }
 

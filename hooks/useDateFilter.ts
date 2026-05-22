@@ -19,8 +19,12 @@ export function useDateFilter(): DateFilterState {
   const [toDate, setToDate] = useState<Date>(defaults.to);
 
   const setRange = useCallback((from: Date, to: Date) => {
-    setFromDate(from);
-    setToDate(to);
+    const normalizedFrom = new Date(from);
+    normalizedFrom.setHours(0, 0, 0, 0);
+    const normalizedTo = new Date(to);
+    normalizedTo.setHours(23, 59, 59, 999);
+    setFromDate(normalizedFrom);
+    setToDate(normalizedTo);
   }, []);
 
   const setPreset = useCallback((preset: "7d" | "30d" | "month") => {
