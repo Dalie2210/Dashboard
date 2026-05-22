@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getLastInteraction } from "@/lib/queries";
+import { getLastRoleBySession } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const data = await getLastInteraction(from, to);
+    const data = await getLastRoleBySession(from, to);
     return NextResponse.json(data);
   } catch (err) {
     console.error("[/api/dashboard/last-interaction]", err);

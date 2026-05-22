@@ -13,11 +13,18 @@ export interface MetricsResponse {
   };
 }
 
-export interface LastInteractionResponse {
-  lastAiMessage: string | null;
-  lastHumanMessage: string | null;
-  aiMinutesAgo: number | null;
-  humanMinutesAgo: number | null;
+export interface LastRoleSessionResponse {
+  aiSessions: number;
+  humanSessions: number;
+}
+
+export interface TimelinePoint {
+  day: string;
+  sessionCount: number;
+}
+
+export interface SessionsTimelineResponse {
+  points: TimelinePoint[];
 }
 
 export interface SessionData {

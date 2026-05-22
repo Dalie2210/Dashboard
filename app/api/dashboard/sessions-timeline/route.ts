@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessions } from "@/lib/queries";
+import { getSessionsTimeline } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -16,10 +16,10 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const data = await getSessions(from, to);
+    const data = await getSessionsTimeline(from, to);
     return NextResponse.json(data);
   } catch (err) {
-    console.error("[/api/dashboard/sessions]", err);
+    console.error("[/api/dashboard/sessions-timeline]", err);
     return NextResponse.json(
       { error: "Error al consultar la base de datos" },
       { status: 500 }

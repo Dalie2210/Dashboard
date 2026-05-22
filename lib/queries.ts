@@ -1,8 +1,9 @@
 import getDb from "./db";
 import type {
   MetricsResponse,
-  LastInteractionResponse,
+  LastRoleSessionResponse,
   SessionsResponse,
+  SessionsTimelineResponse,
 } from "./types";
 
 type Row = Record<string, unknown>;
@@ -59,39 +60,60 @@ export async function getMetrics(
   };
 }
 
-export async function getLastInteraction(
+export async function getLastRoleBySession(
   from: string,
   to: string
-): Promise<LastInteractionResponse> {
+): Promise<LastRoleSessionResponse> {
   const sql = getDb();
 
-  const result = (await sql`
-    SELECT
-      MAX(CASE WHEN rol = 'ai' THEN fecha END) AS last_ai_message,
-      MAX(CASE WHEN rol = 'human' THEN fecha END) AS last_human_message
-    FROM vista_dashboard_agente
-    WHERE fecha >= ${from}::timestamptz
-      AND fecha < ${to}::timestamptz
+  const rows = (await sql`
+    SELECT last_rol, COUNT(*) AS session_count
+    FROM (
+      SELECT DISTINCT ON (session_id)
+        session_id, rol AS last_rol
+      FROM vista_dashboard_agente
+      WHERE fecha >= ${from}::timestamptz
+        AND fecha < ${to}::timestamptz
+      ORDER BY session_id, fecha DESC
+    ) t
+    GROUP BY last_rol
   `) as Row[];
 
-  const row = result[0] ?? {};
-  const now = Date.now();
+  let aiSessions = 0;
+  let humanSessions = 0;
+  for (const row of rows) {
+    if (row.last_rol === "ai") aiSessions = Number(row.session_count);
+    else if (row.last_rol === "human") humanSessions = Number(row.session_count);
+  }
 
-  const lastAiMessage = row.last_ai_message
-    ? new Date(row.last_ai_message as string).toISOString()
-    : null;
-  const lastHumanMessage = row.last_human_message
-    ? new Date(row.last_human_message as string).toISOString()
-    : null;
+  return { aiSessions, humanSessions };
+}
 
-  const aiMinutesAgo = lastAiMessage
-    ? Math.floor((now - new Date(lastAiMessage).getTime()) / 60_000)
-    : null;
-  const humanMinutesAgo = lastHumanMessage
-    ? Math.floor((now - new Date(lastHumanMessage).getTime()) / 60_000)
-    : null;
+export async function getSessionsTimeline(
+  from: string,
+  to: string
+): Promise<SessionsTimelineResponse> {
+  const sql = getDb();
 
-  return { lastAiMessage, lastHumanMessage, aiMinutesAgo, humanMinutesAgo };
+  const rows = (await sql`
+    SELECT day, COUNT(*) AS session_count
+    FROM (
+      SELECT session_id, MIN(fecha)::date AS day
+      FROM vista_dashboard_agente
+      WHERE fecha >= ${from}::timestamptz
+        AND fecha < ${to}::timestamptz
+      GROUP BY session_id
+    ) s
+    GROUP BY day
+    ORDER BY day
+  `) as Row[];
+
+  return {
+    points: rows.map((r) => ({
+      day: String(r.day),
+      sessionCount: Number(r.session_count),
+    })),
+  };
 }
 
 export async function getSessions(

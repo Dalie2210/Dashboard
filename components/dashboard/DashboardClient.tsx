@@ -6,7 +6,7 @@ import { useDateFilter } from "@/hooks/useDateFilter";
 import {
   useDashboardMetrics,
   useLastInteraction,
-  useSessions,
+  useSessionsTimeline,
 } from "@/hooks/useDashboardMetrics";
 import { StatCard } from "./StatCard";
 import { LastInteractionCard } from "./LastInteractionCard";
@@ -18,9 +18,8 @@ const RoleDistributionChart = dynamic(
   () => import("./RoleDistributionChart").then((m) => m.RoleDistributionChart),
   { ssr: false }
 );
-const MessagesPerSessionChart = dynamic(
-  () =>
-    import("./MessagesPerSessionChart").then((m) => m.MessagesPerSessionChart),
+const SessionsTimelineChart = dynamic(
+  () => import("./SessionsTimelineChart").then((m) => m.SessionsTimelineChart),
   { ssr: false }
 );
 
@@ -48,11 +47,19 @@ function AvgIcon() {
   );
 }
 
+function rangeIncludesToday(toDate: Date): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return toDate >= today;
+}
+
 export function DashboardClient() {
   const filter = useDateFilter();
+  const isLive = rangeIncludesToday(filter.toDate);
+
   const { metrics, isLoading: metricsLoading, isValidating: mv } = useDashboardMetrics(filter.from, filter.to);
   const { lastInteraction, isLoading: liLoading } = useLastInteraction(filter.from, filter.to);
-  const { sessionsData, isLoading: sessionsLoading } = useSessions(filter.from, filter.to);
+  const { timelineData, isLoading: timelineLoading } = useSessionsTimeline(filter.from, filter.to);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -73,7 +80,7 @@ export function DashboardClient() {
             </div>
             <h1 className="text-xl font-bold text-white">Dashboard del Agente</h1>
           </div>
-          <RefreshIndicator isValidating={mv} lastUpdated={lastUpdated} />
+          <RefreshIndicator isValidating={mv} lastUpdated={lastUpdated} isLive={isLive} />
         </div>
 
         {/* Date Filter */}
@@ -133,15 +140,14 @@ export function DashboardClient() {
           </div>
         </div>
 
-        {/* Sessions bar chart */}
-        <MessagesPerSessionChart
-          sessionsData={sessionsData}
-          isLoading={sessionsLoading}
-        />
+        {/* Sessions timeline */}
+        <SessionsTimelineChart timelineData={timelineData} isLoading={timelineLoading} />
 
         {/* Footer */}
         <p className="text-center text-xs text-zinc-700 pb-2">
-          Datos en tiempo real · Actualización automática cada 30 segundos
+          {isLive
+            ? "Actualización automática cada hora"
+            : "Vista histórica — los datos no se actualizan"}
         </p>
       </div>
     </div>

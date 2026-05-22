@@ -6,9 +6,10 @@ import { Spinner } from "@/components/ui/Spinner";
 interface RefreshIndicatorProps {
   isValidating: boolean;
   lastUpdated: Date | null;
+  isLive?: boolean;
 }
 
-export function RefreshIndicator({ isValidating, lastUpdated }: RefreshIndicatorProps) {
+export function RefreshIndicator({ isValidating, lastUpdated, isLive = true }: RefreshIndicatorProps) {
   const [secondsAgo, setSecondsAgo] = useState(0);
 
   useEffect(() => {
@@ -18,6 +19,17 @@ export function RefreshIndicator({ isValidating, lastUpdated }: RefreshIndicator
     }, 1000);
     return () => clearInterval(interval);
   }, [lastUpdated]);
+
+  if (!isLive) {
+    return (
+      <div className="flex items-center gap-2 text-xs text-zinc-500">
+        <span className="relative flex h-2 w-2">
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-zinc-600" />
+        </span>
+        <span>Histórico</span>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2 text-xs text-zinc-500">

@@ -2,42 +2,44 @@
 
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { formatMinutesAgo, getUrgencyColor, getUrgencyBg, formatISODate } from "@/lib/utils";
-import type { LastInteractionResponse } from "@/lib/types";
+import type { LastRoleSessionResponse } from "@/lib/types";
 
 interface LastInteractionCardProps {
-  data: LastInteractionResponse | undefined;
+  data: LastRoleSessionResponse | undefined;
   isLoading: boolean;
 }
 
-function InteractionPanel({
+function RolePanel({
   role,
-  minutesAgo,
-  lastMessage,
+  count,
+  total,
 }: {
   role: "ai" | "human";
-  minutesAgo: number | null;
-  lastMessage: string | null;
+  count: number;
+  total: number;
 }) {
-  const urgencyColor = getUrgencyColor(minutesAgo);
-  const urgencyBg = getUrgencyBg(minutesAgo);
+  const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  const isAi = role === "ai";
+  const accent = isAi ? "text-blue-400" : "text-amber-400";
+  const bg = isAi ? "bg-blue-950 border-blue-800" : "bg-amber-950 border-amber-800";
+  const bar = isAi ? "bg-blue-500" : "bg-amber-500";
 
   return (
-    <div className={`flex-1 rounded-xl border p-4 ${urgencyBg}`}>
+    <div className={`flex-1 rounded-xl border p-4 ${bg}`}>
       <div className="flex items-center justify-between mb-3">
         <Badge role={role} />
-        <span className={`text-xs font-medium ${urgencyColor}`}>
-          {minutesAgo !== null && minutesAgo < 5
-            ? "Activo"
-            : minutesAgo !== null && minutesAgo < 30
-            ? "Reciente"
-            : "Inactivo"}
-        </span>
+        <span className={`text-xs font-semibold ${accent}`}>{pct}%</span>
       </div>
-      <p className={`text-2xl font-bold ${urgencyColor} leading-tight`}>
-        {formatMinutesAgo(minutesAgo)}
+      <p className={`text-3xl font-bold ${accent} leading-tight`}>{count}</p>
+      <p className="text-xs text-zinc-400 mt-1">
+        {count === 1 ? "sesión" : "sesiones"}
       </p>
-      <p className="text-xs text-zinc-500 mt-2">{formatISODate(lastMessage)}</p>
+      <div className="mt-3 h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+        <div
+          className={`h-full rounded-full ${bar} transition-all duration-500`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
     </div>
   );
 }
@@ -47,7 +49,7 @@ export function LastInteractionCard({ data, isLoading }: LastInteractionCardProp
     return (
       <Card>
         <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
-          Última interacción
+          Sesiones por último rol
         </p>
         <div className="flex gap-3">
           <div className="flex-1 h-28 bg-zinc-800 rounded-xl animate-pulse" />
@@ -57,22 +59,21 @@ export function LastInteractionCard({ data, isLoading }: LastInteractionCardProp
     );
   }
 
+  const aiSessions = data?.aiSessions ?? 0;
+  const humanSessions = data?.humanSessions ?? 0;
+  const total = aiSessions + humanSessions;
+
   return (
     <Card>
-      <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-4">
-        Última interacción
+      <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider mb-1">
+        Sesiones por último rol
+      </p>
+      <p className="text-xs text-zinc-600 mb-4">
+        Quién envió el último mensaje en cada sesión
       </p>
       <div className="flex gap-3">
-        <InteractionPanel
-          role="ai"
-          minutesAgo={data?.aiMinutesAgo ?? null}
-          lastMessage={data?.lastAiMessage ?? null}
-        />
-        <InteractionPanel
-          role="human"
-          minutesAgo={data?.humanMinutesAgo ?? null}
-          lastMessage={data?.lastHumanMessage ?? null}
-        />
+        <RolePanel role="ai" count={aiSessions} total={total} />
+        <RolePanel role="human" count={humanSessions} total={total} />
       </div>
     </Card>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import type { MetricsResponse } from "@/lib/types";
+import type { MetricsResponse, LastRoleSessionResponse, SessionsTimelineResponse } from "@/lib/types";
 
 const fetcher = (url: string) =>
   fetch(url).then((r) => {
@@ -9,16 +9,26 @@ const fetcher = (url: string) =>
     return r.json();
   });
 
+function rangeIncludesToday(to: string): boolean {
+  const today = new Date().toISOString().split("T")[0];
+  return to >= today;
+}
+
+function swrOptions(to: string) {
+  const live = rangeIncludesToday(to);
+  return {
+    refreshInterval: live ? 3_600_000 : 0,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: live,
+    dedupingInterval: live ? 60_000 : 0,
+  };
+}
+
 export function useDashboardMetrics(from: string, to: string) {
   const { data, error, isValidating } = useSWR<MetricsResponse>(
     `/api/dashboard/metrics?from=${from}&to=${to}`,
     fetcher,
-    {
-      refreshInterval: 30_000,
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-      dedupingInterval: 5_000,
-    }
+    swrOptions(to)
   );
 
   return {
@@ -30,15 +40,10 @@ export function useDashboardMetrics(from: string, to: string) {
 }
 
 export function useLastInteraction(from: string, to: string) {
-  const { data, error, isValidating } = useSWR(
+  const { data, error, isValidating } = useSWR<LastRoleSessionResponse>(
     `/api/dashboard/last-interaction?from=${from}&to=${to}`,
     fetcher,
-    {
-      refreshInterval: 30_000,
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-      dedupingInterval: 5_000,
-    }
+    swrOptions(to)
   );
 
   return {
@@ -49,20 +54,15 @@ export function useLastInteraction(from: string, to: string) {
   };
 }
 
-export function useSessions(from: string, to: string) {
-  const { data, error, isValidating } = useSWR(
-    `/api/dashboard/sessions?from=${from}&to=${to}`,
+export function useSessionsTimeline(from: string, to: string) {
+  const { data, error, isValidating } = useSWR<SessionsTimelineResponse>(
+    `/api/dashboard/sessions-timeline?from=${from}&to=${to}`,
     fetcher,
-    {
-      refreshInterval: 30_000,
-      revalidateOnFocus: true,
-      revalidateOnReconnect: true,
-      dedupingInterval: 5_000,
-    }
+    swrOptions(to)
   );
 
   return {
-    sessionsData: data,
+    timelineData: data,
     isLoading: !data && !error,
     isError: !!error,
     isValidating,
