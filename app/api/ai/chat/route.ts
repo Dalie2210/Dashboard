@@ -4,6 +4,9 @@ import { validateSql } from "@/lib/sqlValidator";
 import { executeDynamicSql } from "@/lib/db";
 import { ChatRequest, ChatResponse } from "@/lib/types";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 let groq: Groq | null = null;
 const sqlCache = new LRUCache<string, string>({
   max: 100,
