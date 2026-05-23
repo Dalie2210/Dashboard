@@ -213,8 +213,8 @@ export default function AIAssistant() {
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col h-screen">
+    <div className="min-h-screen bg-zinc-950 text-white flex flex-col">
+      <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex flex-col flex-1">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-white mb-1">Asistente IA</h1>
@@ -279,9 +279,11 @@ export default function AIAssistant() {
             </div>
           )}
         </div>
+      </div>
 
-        {/* Input area */}
-        <div className="border-t border-zinc-800 pt-4">
+      {/* Input area - sticky at bottom */}
+      <div className="border-t border-zinc-800 bg-zinc-950 sticky bottom-0 px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-4xl mx-auto">
           <div className="flex gap-2">
             <textarea
               value={input}
