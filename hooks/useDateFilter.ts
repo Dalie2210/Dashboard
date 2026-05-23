@@ -22,15 +22,14 @@ export function useDateFilter(): DateFilterState {
     const normalizedFrom = new Date(from);
     normalizedFrom.setHours(0, 0, 0, 0);
     const normalizedTo = new Date(to);
-    normalizedTo.setHours(23, 59, 59, 999);
+    normalizedTo.setDate(normalizedTo.getDate() + 1);
+    normalizedTo.setHours(0, 0, 0, 0);
     setFromDate(normalizedFrom);
     setToDate(normalizedTo);
   }, []);
 
   const setPreset = useCallback((preset: "7d" | "30d" | "month") => {
     const now = new Date();
-    const to = new Date(now);
-    to.setHours(23, 59, 59, 999);
     const from = new Date(now);
     from.setHours(0, 0, 0, 0);
     if (preset === "7d") {
@@ -40,6 +39,9 @@ export function useDateFilter(): DateFilterState {
     } else {
       from.setDate(1);
     }
+    const to = new Date(now);
+    to.setDate(to.getDate() + 1);
+    to.setHours(0, 0, 0, 0);
     setFromDate(from);
     setToDate(to);
   }, []);

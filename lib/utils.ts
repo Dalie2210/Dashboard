@@ -46,10 +46,11 @@ export function toDateString(date: Date): string {
 
 export function getDefaultDateRange(): { from: Date; to: Date } {
   const now = new Date();
-  const to = new Date(now);
-  to.setHours(23, 59, 59, 999);
   const from = new Date(now);
   from.setDate(from.getDate() - 29);
   from.setHours(0, 0, 0, 0);
+  const to = new Date(now);
+  to.setDate(to.getDate() + 1);
+  to.setHours(0, 0, 0, 0);
   return { from, to };
 }
