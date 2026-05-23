@@ -13,6 +13,15 @@ const sqlCache = new LRUCache<string, string>({
   ttl: 1000 * 60 * 60, // 1 hour
 });
 
+function getTodayInColombia(): string {
+  const now = new Date();
+  const col = new Date(now.toLocaleString("en-US", { timeZone: "America/Bogota" }));
+  const y = col.getFullYear();
+  const m = String(col.getMonth() + 1).padStart(2, "0");
+  const d = String(col.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function getGroqClient(): Groq {
   if (!groq) {
     if (!process.env.GROQ_API_KEY) {
@@ -37,7 +46,8 @@ function stripCodeFences(text: string): string {
 }
 
 async function generateSql(question: string): Promise<string> {
-  const cacheKey = question.trim().toLowerCase();
+  const today = getTodayInColombia();
+  const cacheKey = `${today}:${question.trim().toLowerCase()}`;
 
   // Check cache first (SQL generation is deterministic at temperature 0)
   if (sqlCache.has(cacheKey)) {
@@ -47,6 +57,7 @@ async function generateSql(question: string): Promise<string> {
 
   const systemPrompt = `Eres un asistente de análisis de datos para Be Welly.
 Genera UNA SOLA consulta SQL válida para PostgreSQL.
+Fecha actual (hora Colombia): ${today}
 
 ESQUEMA: vista vista_dashboard_agente
   - id (INTEGER)

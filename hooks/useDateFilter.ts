@@ -5,12 +5,6 @@ import { toDateString, getDefaultDateRange } from "@/lib/utils";
 
 const defaults = getDefaultDateRange();
 
-function getNowInColombia(): Date {
-  const now = new Date();
-  const colombiaTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Bogota" }));
-  return colombiaTime;
-}
-
 export interface DateFilterState {
   from: string;
   to: string;
@@ -34,14 +28,11 @@ export function useDateFilter(): DateFilterState {
   }, []);
 
   const setPreset = useCallback((preset: "7d" | "30d" | "month") => {
-    const colombiaTime = getNowInColombia();
-
-    const to = new Date(colombiaTime);
+    const now = new Date();
+    const to = new Date(now);
     to.setHours(23, 59, 59, 999);
-
-    const from = new Date(colombiaTime);
+    const from = new Date(now);
     from.setHours(0, 0, 0, 0);
-
     if (preset === "7d") {
       from.setDate(from.getDate() - 6);
     } else if (preset === "30d") {
@@ -49,7 +40,6 @@ export function useDateFilter(): DateFilterState {
     } else {
       from.setDate(1);
     }
-
     setFromDate(from);
     setToDate(to);
   }, []);
