@@ -37,15 +37,29 @@ export function formatISODate(iso: string | null): string {
   }).format(new Date(iso));
 }
 
+function getNowInColombia(): Date {
+  const now = new Date();
+  const colombiaTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Bogota" }));
+  return colombiaTime;
+}
+
 export function toDateString(date: Date): string {
-  return date.toISOString().split("T")[0];
+  const colombiaTime = new Date(date.toLocaleString("en-US", { timeZone: "America/Bogota" }));
+  const year = colombiaTime.getFullYear();
+  const month = String(colombiaTime.getMonth() + 1).padStart(2, "0");
+  const day = String(colombiaTime.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function getDefaultDateRange(): { from: Date; to: Date } {
-  const to = new Date();
+  const colombiaTime = getNowInColombia();
+
+  const to = new Date(colombiaTime);
   to.setHours(23, 59, 59, 999);
-  const from = new Date();
+
+  const from = new Date(colombiaTime);
   from.setDate(from.getDate() - 29);
   from.setHours(0, 0, 0, 0);
+
   return { from, to };
 }
