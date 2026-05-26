@@ -63,5 +63,17 @@ export function validateSql(sql: string): { valid: boolean; reason?: string } {
     return { valid: false, reason: "Multiple SQL statements not allowed" };
   }
 
+  // Check for LIMIT clause
+  const limitMatch = upperSql.match(/\bLIMIT\s+(\d+)\b/);
+  if (!limitMatch) {
+    return { valid: false, reason: "Query must include a LIMIT clause to control token usage" };
+  }
+
+  // Enforce LIMIT <= 100 to keep token usage under 12,000 tokens per request
+  const limitValue = parseInt(limitMatch[1], 10);
+  if (limitValue > 100) {
+    return { valid: false, reason: "LIMIT must be 100 or less to control token usage" };
+  }
+
   return { valid: true };
 }

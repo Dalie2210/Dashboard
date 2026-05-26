@@ -67,7 +67,7 @@ ESQUEMA: vista vista_dashboard_agente
   - fecha (TIMESTAMP WITH TIME ZONE)
 
 REGLAS: Solo SELECT. Sin explicaciones ni markdown. Solo vista_dashboard_agente.
-Siempre LIMIT 200. Si la pregunta no aplica, responde: NO_DATA`;
+Siempre LIMIT 100. Si la pregunta no aplica, responde: NO_DATA`;
 
   try {
     console.log("[SQL Generation] Calling Groq API for question:", question.substring(0, 50));
@@ -111,6 +111,32 @@ Siempre LIMIT 200. Si la pregunta no aplica, responde: NO_DATA`;
   }
 }
 
+function compressResults(rows: unknown[]): string {
+  const MAX_ROWS = 80;
+  const MAX_CONTENIDO_CHARS = 250;
+
+  const compressed = rows.slice(0, MAX_ROWS).map((row) => {
+    const r = row as Record<string, unknown>;
+    return {
+      session_id: r.session_id,
+      rol: r.rol,
+      contenido:
+        typeof r.contenido === "string"
+          ? r.contenido.slice(0, MAX_CONTENIDO_CHARS) +
+            (r.contenido.length > MAX_CONTENIDO_CHARS ? "…" : "")
+          : r.contenido,
+      fecha: r.fecha,
+    };
+  });
+
+  const truncationNote =
+    rows.length > MAX_ROWS
+      ? `\n[Nota: se muestran ${MAX_ROWS} de ${rows.length} resultados para optimizar tokens]`
+      : "";
+
+  return JSON.stringify(compressed) + truncationNote;
+}
+
 async function analyzeResults(
   question: string,
   sqlQuery: string,
@@ -126,7 +152,7 @@ Responde SIEMPRE en español con Markdown bien formateado:
 - ## Recomendación al cierre cuando aplique
 - Máximo 600 palabras`;
 
-  const resultsJson = JSON.stringify(results, null, 2);
+  const resultsJson = compressResults(results);
 
   const response = await getGroqClient().chat.completions.create({
     model: "llama-3.3-70b-versatile",
