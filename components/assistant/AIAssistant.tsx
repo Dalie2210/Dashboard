@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ChatMessage, ChatResponse } from "@/lib/types";
+import { ChatMessage, ChatResponse, TokenUsage } from "@/lib/types";
 
 const SUGGESTIONS = [
   "¿Cuáles han sido las objeciones principales esta semana?",
@@ -13,19 +13,40 @@ const SUGGESTIONS = [
   "Compara las conversaciones de esta semana con la anterior",
 ];
 
-function UserBubble({ content }: { content: string }) {
+function UserBubble({ content, isOpenAI }: { content: string; isOpenAI?: boolean }) {
   return (
     <div className="flex justify-end mb-4">
-      <div className="max-w-xs bg-amber-900/30 text-white rounded-lg px-4 py-2 text-sm">
+      <div
+        className={`max-w-xs text-white rounded-lg px-4 py-2 text-sm ${
+          isOpenAI ? "bg-emerald-900/40 border border-emerald-800/50" : "bg-amber-900/30"
+        }`}
+      >
         {content}
       </div>
     </div>
   );
 }
 
-function AssistantBubble({ content }: { content: string }) {
+function TokenChip({ usage }: { usage: TokenUsage }) {
   return (
-    <div className="flex justify-start mb-4">
+    <div className="mt-1.5 flex justify-start pl-1">
+      <span
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono text-zinc-500 bg-zinc-900 border border-zinc-800"
+        title="Tokens OpenAI: prompt · completion · total"
+      >
+        <span title="Prompt tokens">{usage.promptTokens}p</span>
+        <span className="text-zinc-700">·</span>
+        <span title="Completion tokens">{usage.completionTokens}c</span>
+        <span className="text-zinc-700">·</span>
+        <span title="Total tokens" className="text-zinc-400">{usage.totalTokens}</span>
+      </span>
+    </div>
+  );
+}
+
+function AssistantBubble({ content, tokenUsage }: { content: string; tokenUsage?: TokenUsage }) {
+  return (
+    <div className="flex flex-col justify-start mb-4">
       <div className="max-w-2xl bg-zinc-900 border border-l-4 border-l-blue-500 border-zinc-800 text-white rounded-lg px-4 py-3 text-sm">
         <div className="prose prose-invert prose-sm max-w-none">
           <ReactMarkdown
@@ -82,6 +103,7 @@ function AssistantBubble({ content }: { content: string }) {
           </ReactMarkdown>
         </div>
       </div>
+      {tokenUsage && <TokenChip usage={tokenUsage} />}
     </div>
   );
 }
@@ -126,6 +148,7 @@ export default function AIAssistant() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [openAIMode, setOpenAIMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -136,6 +159,17 @@ export default function AIAssistant() {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.altKey && e.key.toLowerCase() === "o") {
+        e.preventDefault();
+        setOpenAIMode((prev) => !prev);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const handleSendMessage = async (question: string) => {
     if (!question.trim()) return;
 
@@ -144,6 +178,7 @@ export default function AIAssistant() {
       role: "user",
       content: question,
       timestamp: new Date(),
+      isOpenAI: openAIMode,
     };
 
     const loadingMessage: ChatMessage = {
@@ -162,7 +197,7 @@ export default function AIAssistant() {
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question, useOpenAI: openAIMode }),
       });
 
       const data = (await response.json()) as ChatResponse & { error?: string };
@@ -188,6 +223,7 @@ export default function AIAssistant() {
             role: "assistant",
             content: data.answer,
             timestamp: new Date(),
+            tokenUsage: data.tokenUsage,
           },
         ];
       });
@@ -217,7 +253,14 @@ export default function AIAssistant() {
       <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex flex-col flex-1">
         {/* Header */}
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white mb-1">Asistente IA</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-white mb-1">Asistente IA</h1>
+            {openAIMode && (
+              <span className="text-[10px] font-mono text-zinc-600 border border-zinc-800 rounded px-1.5 py-0.5 mb-1">
+                gpt
+              </span>
+            )}
+          </div>
           <p className="text-sm text-zinc-500">
             Haz preguntas sobre las conversaciones del agente en lenguaje natural
           </p>
@@ -265,7 +308,7 @@ export default function AIAssistant() {
             <div>
               {messages.map((msg) => {
                 if (msg.role === "user") {
-                  return <UserBubble key={msg.id} content={msg.content} />;
+                  return <UserBubble key={msg.id} content={msg.content} isOpenAI={msg.isOpenAI} />;
                 }
                 if (msg.isError) {
                   return <ErrorBubble key={msg.id} content={msg.content} />;
@@ -273,7 +316,7 @@ export default function AIAssistant() {
                 if (msg.isStreaming) {
                   return <LoadingBubble key={msg.id} />;
                 }
-                return <AssistantBubble key={msg.id} content={msg.content} />;
+                return <AssistantBubble key={msg.id} content={msg.content} tokenUsage={msg.tokenUsage} />;
               })}
               <div ref={messagesEndRef} />
             </div>

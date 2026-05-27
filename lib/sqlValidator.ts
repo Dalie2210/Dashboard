@@ -49,11 +49,11 @@ export function validateSql(sql: string): { valid: boolean; reason?: string } {
     };
   }
 
-  // Must reference vista_dashboard_agente
-  if (!upperSql.includes("VISTA_DASHBOARD_AGENTE")) {
+  // Must reference ai_memory table
+  if (!upperSql.includes("AI_MEMORY")) {
     return {
       valid: false,
-      reason: 'Query must reference "vista_dashboard_agente"',
+      reason: 'Query must reference "ai_memory" table',
     };
   }
 

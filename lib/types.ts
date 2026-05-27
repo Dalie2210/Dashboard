@@ -46,6 +46,12 @@ export interface DateRange {
 
 export type MessageRole = "user" | "assistant";
 
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -53,14 +59,18 @@ export interface ChatMessage {
   timestamp: Date;
   isStreaming?: boolean;
   isError?: boolean;
+  tokenUsage?: TokenUsage;
+  isOpenAI?: boolean;
 }
 
 export interface ChatRequest {
   question: string;
+  useOpenAI?: boolean;
 }
 
 export interface ChatResponse {
   answer: string;
   sqlUsed?: string;
   rowCount?: number;
+  tokenUsage?: TokenUsage;
 }
