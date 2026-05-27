@@ -9,7 +9,9 @@
       "Bash(node -e ' *)",
       "Bash(dir /s /b \"c:\\\\Users\\\\danie\\\\OneDrive\\\\Desktop\\\\Be Welly\\\\Dashboard\\\\app\")",
       "Bash(curl -s http://localhost:3000)",
-      "Bash(curl -s http://localhost:3000/)"
+      "Bash(curl -s http://localhost:3000/)",
+      "Bash(npm show *)",
+      "Bash(node -e \"const {GenerateContentResponse} = require\\('@google/genai'\\); const r = new GenerateContentResponse\\(\\); console.log\\(typeof r.text\\);\")"
     ]
   }
 }

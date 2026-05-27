@@ -27,13 +27,8 @@ function getGroqClient(): Groq {
     if (!process.env.GROQ_API_KEY) {
       throw new Error("GROQ_API_KEY not configured");
     }
-    try {
-      groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-      console.log("[Groq Client] Initialized successfully");
-    } catch (err) {
-      console.error("[Groq Client] Initialization error:", err);
-      throw err;
-    }
+    groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    console.log("[Groq Client] Initialized successfully");
   }
   return groq;
 }
@@ -49,53 +44,47 @@ async function generateSql(question: string): Promise<string> {
   const today = getTodayInColombia();
   const cacheKey = `${today}:${question.trim().toLowerCase()}`;
 
-  // Check cache first (SQL generation is deterministic at temperature 0)
   if (sqlCache.has(cacheKey)) {
     console.log("[SQL Generation] Cache hit for:", cacheKey.substring(0, 50));
     return sqlCache.get(cacheKey)!;
   }
 
-  const systemPrompt = `Eres un asistente de análisis de datos para Be Welly.
-Genera UNA SOLA consulta SQL válida para PostgreSQL.
-Fecha actual (hora Colombia): ${today}
+  const systemPrompt = `Eres un experto en SQL PostgreSQL que trabaja para Be Welly, empresa colombiana de bienestar digital.
+Tu única función es generar consultas SQL precisas a partir de preguntas en español.
+Fecha actual (zona horaria Colombia / Bogotá): ${today}
 
-ESQUEMA: vista vista_dashboard_agente
-  - id (INTEGER)
-  - session_id (VARCHAR) — agrupa mensajes en conversaciones
-  - rol (TEXT) — 'ai' o 'human'
-  - contenido (TEXT) — texto del mensaje
-  - fecha (TIMESTAMP WITH TIME ZONE)
+ESQUEMA DISPONIBLE:
+  Vista: vista_dashboard_agente
+    - id         (INTEGER)          — identificador único del mensaje
+    - session_id (VARCHAR)          — agrupa mensajes de una misma conversación
+    - rol        (TEXT)             — 'ai' para mensajes del asistente, 'human' para mensajes del usuario
+    - contenido  (TEXT)             — texto completo del mensaje
+    - fecha      (TIMESTAMP WITH TIME ZONE) — fecha y hora del mensaje, en UTC
 
-REGLAS: Solo SELECT. Sin explicaciones ni markdown. Solo vista_dashboard_agente.
-Siempre LIMIT 100. Si la pregunta no aplica, responde: NO_DATA`;
+INSTRUCCIONES:
+1. Genera UNA SOLA consulta SELECT válida para PostgreSQL.
+2. No incluyas explicaciones, comentarios ni bloques de código markdown. Solo el SQL puro.
+3. Solo puedes consultar vista_dashboard_agente. No hay otras tablas.
+4. Incluye siempre una cláusula LIMIT (máximo 100).
+5. Para filtros de fecha usa la sintaxis: fecha::date = '${today}' o BETWEEN.
+6. Para calcular sesiones únicas usa COUNT(DISTINCT session_id).
+7. Para analizar contenido usa ILIKE '%término%' (sin tildes cuando sea posible).
+8. Si la pregunta no puede responderse con este esquema, responde exactamente: NO_DATA`;
 
   try {
     console.log("[SQL Generation] Calling Groq API for question:", question.substring(0, 50));
     const response = await getGroqClient().chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [
-        {
-          role: "system",
-          content: systemPrompt,
-        },
-        {
-          role: "user",
-          content: `Pregunta: ${question}`,
-        },
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Pregunta: ${question}` },
       ],
       temperature: 0,
       max_tokens: 512,
     });
 
-    console.log("[SQL Generation] Groq API response received:", {
-      choices: response.choices?.length,
-      hasContent: !!response.choices[0]?.message?.content,
-    });
-
     const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error("No text response from Groq");
-    }
+    if (!content) throw new Error("No text response from Groq");
 
     const sql = stripCodeFences(content);
     console.log("[SQL Generation] Generated SQL:", sql.substring(0, 100));
@@ -105,7 +94,6 @@ Siempre LIMIT 100. Si la pregunta no aplica, responde: NO_DATA`;
     console.error("[SQL Generation] Error:", {
       message: err instanceof Error ? err.message : String(err),
       name: err instanceof Error ? err.name : typeof err,
-      error: err,
     });
     throw err;
   }
@@ -117,16 +105,11 @@ function compressResults(rows: unknown[]): string {
 
   const compressed = rows.slice(0, MAX_ROWS).map((row) => {
     const r = row as Record<string, unknown>;
-    return {
-      session_id: r.session_id,
-      rol: r.rol,
-      contenido:
-        typeof r.contenido === "string"
-          ? r.contenido.slice(0, MAX_CONTENIDO_CHARS) +
-            (r.contenido.length > MAX_CONTENIDO_CHARS ? "…" : "")
-          : r.contenido,
-      fecha: r.fecha,
-    };
+    const result: Record<string, unknown> = { ...r };
+    if (typeof r.contenido === "string" && r.contenido.length > MAX_CONTENIDO_CHARS) {
+      result.contenido = r.contenido.slice(0, MAX_CONTENIDO_CHARS) + "…";
+    }
+    return result;
   });
 
   const truncationNote =
@@ -142,25 +125,35 @@ async function analyzeResults(
   sqlQuery: string,
   results: unknown[]
 ): Promise<string> {
-  const systemPrompt = `Eres un analista de conversaciones para Be Welly.
-Responde SIEMPRE en español con Markdown bien formateado:
-- ## para secciones
-- **negrita** para hallazgos clave
-- Bullet points para enumeraciones
-- Tablas Markdown para comparativas
-- Resumen ejecutivo al inicio
-- ## Recomendación al cierre cuando aplique
-- Máximo 600 palabras`;
+  const systemPrompt = `Eres un analista de datos senior para Be Welly, empresa colombiana de bienestar digital.
+Tu audiencia son gerentes y directores de operaciones colombianos.
+
+ESTRUCTURA CON MARKDOWN:
+## Resumen ejecutivo
+2-3 oraciones con el hallazgo principal y la métrica más relevante.
+
+## Análisis detallado
+Bullets, tablas comparativas y tendencias extraídas de los datos.
+
+## Patrones identificados
+Solo si los datos son suficientes para identificar comportamientos recurrentes o anomalías.
+
+## Recomendaciones
+Acciones concretas basadas en los hallazgos, solo si aplica.
+
+REGLAS:
+- Idioma: español colombiano, tono profesional pero cercano
+- Usa **negrita** para métricas clave y hallazgos importantes
+- Usa tablas Markdown cuando compares más de 2 categorías o períodos
+- Cita números exactos del dataset; no inventes datos
+- Máximo 800 palabras`;
 
   const resultsJson = compressResults(results);
 
   const response = await getGroqClient().chat.completions.create({
     model: "llama-3.3-70b-versatile",
     messages: [
-      {
-        role: "system",
-        content: systemPrompt,
-      },
+      { role: "system", content: systemPrompt },
       {
         role: "user",
         content: `Pregunta original: "${question}"\n\nResultados de la BD:\n${resultsJson}`,
@@ -171,10 +164,7 @@ Responde SIEMPRE en español con Markdown bien formateado:
   });
 
   const content = response.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error("No text response from Groq");
-  }
-
+  if (!content) throw new Error("No text response from Groq");
   return content;
 }
 
@@ -183,8 +173,7 @@ export async function POST(request: Request) {
     if (!process.env.GROQ_API_KEY) {
       return new Response(
         JSON.stringify({
-          error:
-            "GROQ_API_KEY not configured. Set it in .env.local to enable AI features.",
+          error: "GROQ_API_KEY not configured. Set it in .env.local to enable AI features.",
         }),
         { status: 503, headers: { "Content-Type": "application/json" } }
       );
@@ -193,7 +182,6 @@ export async function POST(request: Request) {
     const body = (await request.json()) as ChatRequest;
     const { question } = body;
 
-    // Validate question
     if (!question || question.length < 3 || question.length > 500) {
       return new Response(
         JSON.stringify({ error: "Question must be between 3 and 500 characters" }),
@@ -201,7 +189,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Phase 1: Generate SQL
     const sqlResponse = await generateSql(question);
 
     if (sqlResponse.toUpperCase() === "NO_DATA") {
@@ -216,7 +203,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate SQL
     console.log("[Chat Route] Validating SQL...");
     const validation = validateSql(sqlResponse);
     if (!validation.valid) {
@@ -227,12 +213,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Execute SQL
     console.log("[Chat Route] Executing SQL query...");
     const results = await executeDynamicSql(sqlResponse);
-    console.log("[Chat Route] Query executed successfully, got", results.length, "rows");
+    console.log("[Chat Route] Query executed, got", results.length, "rows");
 
-    // Phase 2: Analyze results with Gemini
     const answer = await analyzeResults(question, sqlResponse, results);
 
     return new Response(
@@ -249,11 +233,7 @@ export async function POST(request: Request) {
 
     if (error instanceof Error) {
       errorMessage = error.message;
-      errorDetails = {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      };
+      errorDetails = { name: error.name, message: error.message, stack: error.stack };
     } else if (typeof error === "object" && error !== null) {
       errorMessage = JSON.stringify(error);
       errorDetails = error;
@@ -261,27 +241,18 @@ export async function POST(request: Request) {
       errorMessage = String(error);
     }
 
-    // Rate limit error from Groq
     if (errorMessage.includes("429") || errorMessage.includes("rate limit")) {
       return new Response(
         JSON.stringify({
-          error:
-            "API rate limit exceeded. Please wait a moment and try again. (Groq Free Tier: 30 RPM, 14,400 RPD)",
+          error: "Límite de solicitudes alcanzado. Por favor espera un momento e intenta de nuevo. (Groq Free Tier: 30 RPM, 14,400 RPD)",
         }),
         { status: 429, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    console.error("[AI Chat Error] Full Details:", {
-      message: errorMessage,
-      details: errorDetails,
-      type: typeof error,
-      constructor: error?.constructor?.name,
-    });
+    console.error("[AI Chat Error]", { message: errorMessage, details: errorDetails });
     return new Response(
-      JSON.stringify({
-        error: `Server error: ${errorMessage}`,
-      }),
+      JSON.stringify({ error: `Server error: ${errorMessage}` }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
