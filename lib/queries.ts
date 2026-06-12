@@ -5,6 +5,8 @@ import type {
   LastRoleSessionResponse,
   SessionsResponse,
   SessionsTimelineResponse,
+  SalesMetricsResponse,
+  SalesTimelineResponse,
 } from "./types";
 
 type Row = Record<string, unknown>;
@@ -123,6 +125,63 @@ export async function getSessionsTimeline(
           sessionCount: Number(r.session_count),
         };
       }),
+    };
+  }, { from, to });
+}
+
+export async function getSalesMetrics(
+  from: string,
+  to: string
+): Promise<SalesMetricsResponse> {
+  return logQuery('getSalesMetrics', async () => {
+    const sql = getDb();
+
+    const rows = (await sql`
+      SELECT
+        COUNT(*) AS total_transactions,
+        COALESCE(SUM(value), 0) AS total_revenue,
+        ROUND(COALESCE(AVG(value), 0), 2) AS avg_ticket,
+        COUNT(DISTINCT buyer_email) AS unique_buyers
+      FROM ventas_camila
+      WHERE created_at >= ${from}::timestamp
+        AND created_at < ${to}::timestamp
+    `) as Row[];
+
+    const r = rows[0] ?? {};
+    return {
+      totalTransactions: Number(r.total_transactions) || 0,
+      totalRevenue: Number(r.total_revenue) || 0,
+      avgTicket: Number(r.avg_ticket) || 0,
+      uniqueBuyers: Number(r.unique_buyers) || 0,
+    };
+  }, { from, to });
+}
+
+export async function getSalesTimeline(
+  from: string,
+  to: string
+): Promise<SalesTimelineResponse> {
+  return logQuery('getSalesTimeline', async () => {
+    const sql = getDb();
+
+    const rows = (await sql`
+      SELECT
+        created_at::date AS day,
+        ROUND(SUM(value)::numeric, 2) AS revenue,
+        COUNT(*) AS transactions
+      FROM ventas_camila
+      WHERE created_at >= ${from}::timestamp
+        AND created_at < ${to}::timestamp
+      GROUP BY day
+      ORDER BY day
+    `) as Row[];
+
+    return {
+      points: rows.map((r) => ({
+        day: String(r.day).split("T")[0],
+        revenue: Number(r.revenue) || 0,
+        transactions: Number(r.transactions) || 0,
+      })),
     };
   }, { from, to });
 }

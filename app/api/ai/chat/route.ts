@@ -67,7 +67,7 @@ async function generateSql(
   }
 
   const systemPrompt = `Eres un experto en SQL PostgreSQL que trabaja para Be Welly, empresa colombiana de bienestar digital.
-Tu única función es generar consultas SQL precisas a partir de preguntas en español para análisis de conversaciones del agente IA.
+Tu función es generar consultas SQL precisas a partir de preguntas en español para análisis de conversaciones del agente IA y datos de ventas.
 Fecha actual (zona horaria Colombia / Bogotá): ${today}
 
 ESQUEMA DISPONIBLE:
@@ -77,17 +77,27 @@ ESQUEMA DISPONIBLE:
     - message    (jsonb)            — contenido del mensaje, acceder con operators: message->>'content' para texto, message->>'type' para rol
     - created_at (timestamp)        — fecha y hora del mensaje, úsalo para ORDER BY created_at ASC
 
+  Tabla: ventas_camila
+    - id         (serial)           — identificador único
+    - HP_code    (text)             — código de la transacción
+    - buyer_email (text)            — email del comprador
+    - created_at (timestamp)        — fecha y hora de la venta. Úsalo directamente para filtrar, NO uses TO_TIMESTAMP()
+    - value      (numeric)          — valor pagado en USD
+
+  Ejemplo de filtro por fecha en ventas_camila:
+    WHERE created_at >= '2024-01-01'::timestamptz
+      AND created_at < '2024-02-01'::timestamptz
+
 INSTRUCCIONES:
 1. Genera UNA SOLA consulta SELECT válida para PostgreSQL.
 2. No incluyas explicaciones, comentarios ni bloques de código markdown. Solo el SQL puro.
-3. Solo puedes consultar la tabla ai_memory. No hay otras tablas.
+3. Solo puedes consultar las tablas ai_memory y ventas_camila. No hay otras tablas.
 4. Incluye siempre una cláusula LIMIT (máximo 100).
-5. Para acceder al contenido del mensaje usa: message->>'content'
-6. Para identificar el tipo de mensaje usa: message->>'type' (valores: 'human' o 'ai')
-7. Para agrupar conversaciones completas usa session_id.
-8. Para analizar contenido usa ILIKE '%término%' (sin tildes cuando sea posible).
-9. Ordena siempre por created_at ASC para reconstruir el flujo de conversación cronológicamente.
-10. Si la pregunta no puede responderse con este esquema, responde exactamente: NO_DATA`;
+5. Para ai_memory: accede al contenido con message->>'content' y al rol con message->>'type' (valores: 'human' o 'ai').
+6. Para ventas_camila: usa created_at directamente para filtrar o agrupar por fecha (ya es tipo timestamp, NO usar TO_TIMESTAMP).
+7. Para analizar contenido de mensajes usa ILIKE '%término%' (sin tildes cuando sea posible).
+8. Ordena ai_memory por created_at ASC para reconstruir el flujo de conversación.
+9. Si la pregunta no puede responderse con este esquema, responde exactamente: NO_DATA`;
 
   const messages = [
     { role: "system" as const, content: systemPrompt },
@@ -288,7 +298,7 @@ export async function POST(request: Request) {
       return new Response(
         JSON.stringify({
           answer:
-            "Lo siento, no puedo responder esa pregunta con la información disponible en el dashboard. Intenta preguntarme sobre sesiones, mensajes, roles (IA vs Humano) o actividad del agente.",
+            "Lo siento, no puedo responder esa pregunta con la información disponible en el dashboard. Intenta preguntarme sobre sesiones, mensajes, actividad del agente, ventas, ingresos o compradores.",
           sqlUsed: undefined,
           rowCount: 0,
         } as ChatResponse),

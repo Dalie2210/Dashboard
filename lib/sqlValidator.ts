@@ -49,11 +49,13 @@ export function validateSql(sql: string): { valid: boolean; reason?: string } {
     };
   }
 
-  // Must reference ai_memory table
-  if (!upperSql.includes("AI_MEMORY")) {
+  // Must reference at least one allowed table
+  const allowedTables = ["AI_MEMORY", "VENTAS_CAMILA"];
+  const referencesAllowed = allowedTables.some((t) => upperSql.includes(t));
+  if (!referencesAllowed) {
     return {
       valid: false,
-      reason: 'Query must reference "ai_memory" table',
+      reason: 'Query must reference "ai_memory" or "ventas_camila" table',
     };
   }
 

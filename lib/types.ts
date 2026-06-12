@@ -74,3 +74,20 @@ export interface ChatResponse {
   rowCount?: number;
   tokenUsage?: TokenUsage;
 }
+
+export interface SalesMetricsResponse {
+  totalRevenue: number;
+  totalTransactions: number;
+  avgTicket: number;
+  uniqueBuyers: number;
+}
+
+export interface SalesTimelinePoint {
+  day: string;
+  revenue: number;
+  transactions: number;
+}
+
+export interface SalesTimelineResponse {
+  points: SalesTimelinePoint[];
+}
