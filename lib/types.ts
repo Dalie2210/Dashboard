@@ -91,3 +91,7 @@ export interface SalesTimelinePoint {
 export interface SalesTimelineResponse {
   points: SalesTimelinePoint[];
 }
+
+export interface ClosureRateResponse {
+  closureRate: number;
+}

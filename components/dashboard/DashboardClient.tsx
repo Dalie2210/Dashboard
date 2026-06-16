@@ -9,6 +9,7 @@ import {
   useSessionsTimeline,
   useSalesMetrics,
   useSalesTimeline,
+  useClosureRate,
 } from "@/hooks/useDashboardMetrics";
 import { StatCard } from "./StatCard";
 import { LastInteractionCard } from "./LastInteractionCard";
@@ -81,6 +82,14 @@ function BuyersIcon() {
   );
 }
 
+function ClosureRateIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+    </svg>
+  );
+}
+
 function SectionDivider({ title }: { title: string }) {
   return (
     <div className="flex items-center gap-3 pt-2">
@@ -110,6 +119,7 @@ export function DashboardClient() {
   const { timelineData, isLoading: timelineLoading } = useSessionsTimeline(filter.from, filter.to);
   const { salesMetrics, isLoading: salesLoading } = useSalesMetrics(filter.from, filter.to);
   const { salesTimeline, isLoading: salesTimelineLoading } = useSalesTimeline(filter.from, filter.to);
+  const { closureRate, isLoading: closureRateLoading } = useClosureRate(filter.from, filter.to);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
@@ -142,9 +152,10 @@ export function DashboardClient() {
         <SectionDivider title="Ventas" />
 
         {/* KPI Cards — Sales */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {salesLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {salesLoading || closureRateLoading ? (
             <>
+              <StatCardSkeleton />
               <StatCardSkeleton />
               <StatCardSkeleton />
               <StatCardSkeleton />
@@ -179,6 +190,13 @@ export function DashboardClient() {
                 sublabel="Emails distintos"
                 icon={<BuyersIcon />}
                 accent="text-emerald-400"
+              />
+              <StatCard
+                label="% de cierre de IA"
+                value={`${closureRate?.closureRate?.toFixed(2) ?? "0"}%`}
+                sublabel="Ventas por sesión"
+                icon={<ClosureRateIcon />}
+                accent="text-orange-400"
               />
             </>
           )}

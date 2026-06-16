@@ -7,6 +7,7 @@ import type {
   SessionsTimelineResponse,
   SalesMetricsResponse,
   SalesTimelineResponse,
+  ClosureRateResponse,
 } from "./types";
 
 type Row = Record<string, unknown>;
@@ -217,5 +218,33 @@ export async function getSessions(
         startedAt: new Date(r.started_at as string).toISOString(),
       })),
     };
+  }, { from, to });
+}
+
+export async function getClosureRate(
+  from: string,
+  to: string
+): Promise<ClosureRateResponse> {
+  return logQuery('getClosureRate', async () => {
+    const sql = getDb();
+
+    const rows = (await sql`
+      SELECT
+        (SELECT COUNT(*) FROM ventas_camila
+         WHERE created_at >= ${from}::timestamp
+           AND created_at < ${to}::timestamp) as total_transactions,
+        (SELECT COUNT(DISTINCT session_id) FROM vista_dashboard_agente
+         WHERE fecha >= ${from}::timestamptz
+           AND fecha < ${to}::timestamptz) as total_sessions
+    `) as Row[];
+
+    const r = rows[0] ?? {};
+    const totalTransactions = Number(r.total_transactions) || 0;
+    const totalSessions = Number(r.total_sessions) || 0;
+    const closureRate = totalSessions > 0
+      ? Number(((totalTransactions / totalSessions) * 100).toFixed(2))
+      : 0;
+
+    return { closureRate };
   }, { from, to });
 }

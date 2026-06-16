@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import type { MetricsResponse, LastRoleSessionResponse, SessionsTimelineResponse, SalesMetricsResponse, SalesTimelineResponse } from "@/lib/types";
+import type { MetricsResponse, LastRoleSessionResponse, SessionsTimelineResponse, SalesMetricsResponse, SalesTimelineResponse, ClosureRateResponse } from "@/lib/types";
 
 const fetcher = (url: string) =>
   fetch(url).then((r) => {
@@ -93,6 +93,21 @@ export function useSalesTimeline(from: string, to: string) {
 
   return {
     salesTimeline: data,
+    isLoading: !data && !error,
+    isError: !!error,
+    isValidating,
+  };
+}
+
+export function useClosureRate(from: string, to: string) {
+  const { data, error, isValidating } = useSWR<ClosureRateResponse>(
+    `/api/dashboard/closure-rate?from=${from}&to=${to}`,
+    fetcher,
+    swrOptions(to)
+  );
+
+  return {
+    closureRate: data,
     isLoading: !data && !error,
     isError: !!error,
     isValidating,
