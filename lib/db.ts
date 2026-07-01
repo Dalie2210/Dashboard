@@ -1,11 +1,9 @@
-import { neon } from "@neondatabase/serverless";
-import { Pool } from "@neondatabase/serverless";
+import postgres from "postgres";
 import { getLogger } from "./logger";
 
 const logger = getLogger("Database");
 
-let _sql: ReturnType<typeof neon> | null = null;
-let _pool: Pool | null = null;
+let _sql: ReturnType<typeof postgres> | null = null;
 
 function getDb() {
   if (!_sql) {
@@ -15,8 +13,8 @@ function getDb() {
       throw new Error(err);
     }
     try {
-      logger.debug("Initializing Neon database connection");
-      _sql = neon(process.env.DATABASE_URL);
+      logger.debug("Initializing database connection");
+      _sql = postgres(process.env.DATABASE_URL, { ssl: "require" });
       logger.info("Database connection established");
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
@@ -31,34 +29,14 @@ function getDb() {
 }
 
 export async function executeDynamicSql(sql: string) {
-  if (!_pool) {
-    if (!process.env.DATABASE_URL) {
-      const err = "DATABASE_URL no está configurada en .env.local";
-      logger.error("Pool initialization failed", { reason: err });
-      throw new Error(err);
-    }
-    try {
-      logger.debug("Initializing database pool");
-      _pool = new Pool({ connectionString: process.env.DATABASE_URL });
-      logger.info("Database pool created");
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      logger.error("Failed to create database pool", {
-        error: error.message,
-        stack: error.stack,
-      });
-      throw err;
-    }
-  }
-
-  const client = await _pool.connect();
+  const db = getDb();
   try {
     logger.debug("Executing dynamic SQL", { sqlLength: sql.length });
-    const result = await client.query(sql);
+    const rows = await db.unsafe(sql);
     logger.debug("Dynamic SQL executed successfully", {
-      rowsReturned: result.rows.length,
+      rowsReturned: rows.length,
     });
-    return result.rows;
+    return rows;
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
     logger.error("Failed to execute dynamic SQL", {
@@ -67,8 +45,6 @@ export async function executeDynamicSql(sql: string) {
       sqlLength: sql.length,
     });
     throw err;
-  } finally {
-    client.release();
   }
 }
 
